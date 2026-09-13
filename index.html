@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.0.11/html5-qrcode.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
   :root{
     --bg:#c9ad7a;
@@ -392,16 +392,23 @@ document.querySelectorAll('.scan-btn').forEach(btn => {
 function startScanner() {
   if (scanner) return;
   scanner = new Html5Qrcode('qr-reader');
-  scanner.start(
-    { facingMode: 'environment' },
-    { fps: 10, qrbox: 220 },
-    (decodedText) => {
-      document.getElementById(scanTargetId).value = decodedText;
-      showTab('venta');
-    },
-    () => {} // ignorar frames sin código detectado
-  ).catch(() => {
-    document.querySelector('.scan-hint').textContent = 'No se pudo abrir la cámara. Revisa los permisos del navegador.';
+  document.querySelector('.scan-hint').textContent = 'Abriendo cámara...';
+  Html5Qrcode.getCameras().then(cameras => {
+    if (!cameras || !cameras.length) throw new Error('No se encontró ninguna cámara en este dispositivo.');
+    const back = cameras.find(c => /back|rear|trasera|environment/i.test(c.label || '')) || cameras[cameras.length - 1];
+    return scanner.start(
+      back.id,
+      { fps: 10, qrbox: 220 },
+      (decodedText) => {
+        document.getElementById(scanTargetId).value = decodedText;
+        showTab('venta');
+      },
+      () => {} // ignorar frames sin código detectado
+    ).then(() => {
+      document.querySelector('.scan-hint').textContent = 'Apunta la cámara al código del producto';
+    });
+  }).catch(err => {
+    document.querySelector('.scan-hint').textContent = '⚠️ No se pudo abrir la cámara: ' + (err && err.message ? err.message : err);
   });
 }
 function stopScanner() {
